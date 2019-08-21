@@ -25,6 +25,7 @@
     
     "data": [
         "views/res_config_settings_views.xml",
+	"views/stock_inventory_template.xml",
         "views/stock_view.xml",
     ],    
     "images": ["static/description/background.png",],            
