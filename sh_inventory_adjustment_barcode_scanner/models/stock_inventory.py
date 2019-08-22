@@ -18,14 +18,14 @@ class StockInventory(models.Model):
     
             if product_id:                
 
-                location_id = 0                
+                location_id = stock_inventory.location_id                
                 company = self.env.user.company_id
                 warehouse = self.env['stock.warehouse'].search([('company_id', '=', company.id)], limit=1)
                 
-                if warehouse:
-                    location_id = warehouse.lot_stock_id.id
-                else:
-                    raise UserError(_('You must define a warehouse for the company: %s.') % (company.name,))
+#                if warehouse:
+#                    location_id = warehouse.lot_stock_id.id
+#                else:
+#                    raise UserError(_('You must define a warehouse for the company: %s.') % (company.name,))
                                 
                 if not stock_inventory.line_ids:    
                     inventory_line_val = {
