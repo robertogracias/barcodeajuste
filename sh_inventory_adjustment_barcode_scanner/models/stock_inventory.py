@@ -6,8 +6,8 @@ from odoo.exceptions import UserError
 
 class StockInventory(models.Model):
     _inherit='stock.inventory'
-    product_id=fields.Many2one(comodel_name='product.product', string='ULTIMO PRODUCTO ESCANEADO')
-    cantidad=fields.Integer("ULTIMA CANTIDAD LEIDA")
+    last_product_id=fields.Many2one(comodel_name='product.product', string='ULTIMO PRODUCTO ESCANEADO')
+    last_cantidad=fields.Integer("ULTIMA CANTIDAD LEIDA")
 
     @api.one
     def sh_on_barcode_scanned(self, barcode):
@@ -38,7 +38,7 @@ class StockInventory(models.Model):
                             'product_uom_id': product_id.product_tmpl_id.uom_id.id,
                             'inventory_id': stock_inventory.id
                     }
-                    stock_inventory.update({'line_ids': [(0, 0, inventory_line_val)],'product_id':product_id.id,'cantidad':1})
+                    stock_inventory.update({'line_ids': [(0, 0, inventory_line_val)],'last_product_id':product_id.id,'last_cantidad':1})
 
                 else:
                     stock_picking_line = stock_inventory.line_ids.search([('product_id', '=', product_id.id),('inventory_id','=',inventory_id)], limit=1)
@@ -56,7 +56,7 @@ class StockInventory(models.Model):
                             'inventory_id': stock_inventory.id
                         }
 
-                        stock_inventory.update({'line_ids': [(0, 0, inventory_line_val)],'product_id':product_id.id,'cantidad':cantidad})
+                        stock_inventory.update({'line_ids': [(0, 0, inventory_line_val)],'last_product_id':product_id.id,'last_cantidad':cantidad})
 
             else :
                 raise UserError('Product does not exist')
