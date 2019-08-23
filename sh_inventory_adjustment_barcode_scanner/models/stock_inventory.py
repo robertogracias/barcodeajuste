@@ -45,7 +45,7 @@ class StockInventory(models.Model):
                     cantidad=1
                     if stock_picking_line:
                         stock_picking_line.product_qty += 1
-                        cantidad=tock_picking_line.product_qty
+                        cantidad=stock_picking_line.product_qty
                     else :
                         inventory_line_val = {
                             'display_name': product_id.name,
