@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) Softhealer Technologies.
 
-from odoo import models,api
+from odoo import models,api,fields
 from odoo.exceptions import UserError
 
 class StockInventory(models.Model):
