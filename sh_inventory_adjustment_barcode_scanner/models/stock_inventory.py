@@ -38,7 +38,8 @@ class StockInventory(models.Model):
                             'product_uom_id': product_id.product_tmpl_id.uom_id.id,
                             'inventory_id': stock_inventory.id
                     }
-                    stock_inventory.write({'last_product_id':product_id.id,'last_cantidad':1})
+                    self.last_product_id=product_id.id
+                    self.last_cantidad=1
                     stock_inventory.update({'line_ids': [(0, 0, inventory_line_val)]})
 
                 else:
@@ -47,6 +48,8 @@ class StockInventory(models.Model):
                     if stock_picking_line:
                         stock_picking_line.product_qty += 1
                         cantidad=stock_picking_line.product_qty
+                        self.last_product_id=product_id.id
+                        self.last_cantidad=cantidad
                     else :
                         inventory_line_val = {
                             'display_name': product_id.name,
@@ -56,9 +59,8 @@ class StockInventory(models.Model):
                             'product_uom_id': product_id.product_tmpl_id.uom_id.id,
                             'inventory_id': stock_inventory.id
                         }
-                        stock_inventory.write({'last_product_id':product_id.id,'last_cantidad':cantidad})
+                        self.last_product_id=product_id.id
+                        self.last_cantidad=cantidad
                         stock_inventory.update({'line_ids': [(0, 0, inventory_line_val)]})
-
-
             else :
                 raise UserError('Product does not exist')
