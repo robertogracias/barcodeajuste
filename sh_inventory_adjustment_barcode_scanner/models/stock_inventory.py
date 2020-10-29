@@ -17,6 +17,11 @@ class StockInventory(models.Model):
 
         if stock_inventory:
             product_id = self.env['product.product'].search([('barcode', '=', barcode)],limit=1)
+            if not product_id:
+                multi=self.env['product.multi.barcode'].search([('name', '=', barcode)],limit=1)
+                if multi:
+                    if multi.product_id:
+                        product_id=self.env['product.product'].search([('id', '=', multi.product_id.id)],limit=1)
 
             if product_id:
 
