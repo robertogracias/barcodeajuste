@@ -4,6 +4,59 @@
 from odoo import models,api,fields
 from odoo.exceptions import UserError
 
+class mrp_process(models.Model):
+    _name='mrp.proceso'
+    _description='Procesamiento de ordenes'
+    name=fields.Char("Nombre o Referencia")
+    ultima=fields.Char("Ultima orden leida")
+    ordenes=fields.One2many(comodel_name='mrp.proceso.line',inverse_name='proceso_id', string='Ordenes')
+    tipo=fields.Selection([
+        ('Ingreso','Ingreso'),
+        ('Salida','Salida')], string='Tipo de operacion',required=True)
+    
+    
+    @api.one
+    def sh_on_barcode_scanned(self, barcode):
+        proceso_id=self.id
+        proceso=self.env['mrp.proceso'].search([('id', '=', proceso_id)],limit=1)
+        if proceso:
+            orden = self.env['mrp.production'].search([('origin', '=', barcode)],limit=1)
+            if orden:
+                if proceso.tipo=='Ingreso':
+                    if orden.state=='confirmed':
+                        if not orden.recibido_lab:
+                            orden.recibido_lab=True
+                            orden.action_toggle_is_locked()
+                            self.env['mrp.proceso.line'].create({'name':barcode,'proceso_id':proceso.id,'production_id':orden.id})
+                        else:
+                            raise UserError('La orden ya fue recibida')
+                    else:
+                        raise UserError('La orden no esta en estado confirmada')
+                if proceso.tipo=='Salida':
+                    if orden.state=='progress':
+                        orden.button_mark_done()
+                        self.env['mrp.proceso.line'].create({'name':barcode,'proceso_id':proceso.id,'production_id':orden.id})
+                    else:
+                        raise UserError('La orden no esta en progreso')
+            else:
+                raise UserError('La orden no esta registrada')
+        
+    
+class mrp_process_lie(models.Model):
+    _name='mrp.proceso.line'
+    _description='Linea de procesamiento de ordenes'
+    name=fields.Char("Orden")
+    proceso_id=fields.Many2one(comodel_name='mrp.proceso', string='Proceso')
+    production_id=fields.Many2one(comodel_name='mrp.production', string='Orden de Produccion')
+    sale_order=fields.Many2one(comodel_name='sale.order',related='production_id.x_sale_order_id', string='Orden de Venta')
+    partner_id=fields.Many2one(comodel_name='res.partner',related='production_id.x_cliente', string='Cliente')
+    paciente=fields.Char(string='Paciente',related='production_id.x_paciente')
+
+class mrp_process_production(models.Model):
+    _inherit='mrp.production'
+    recibido_lab=fields.Boolean('Recibido en laboratorio')
+
+
 class StockInventory(models.Model):
     _inherit='stock.inventory'
     last_product_id=fields.Many2one(comodel_name='product.product', string='ULTIMO PRODUCTO ESCANEADO')

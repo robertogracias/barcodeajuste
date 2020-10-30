@@ -21,7 +21,7 @@
                 scan it and you done!
                 So be very quick in all operations of odoo and cheers!""",
     
-    "depends": ["barcodes","stock","backend_multi_barcode"],
+    "depends": ["barcodes","stock","backend_multi_barcode","mrp"],
     
     "data": [
         "views/res_config_settings_views.xml",
