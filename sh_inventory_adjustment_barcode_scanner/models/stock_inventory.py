@@ -71,8 +71,12 @@ class stock_paquete(models.Model):
     def calcular_total(self):
         for r in self:
             total=0.0
-            for p in r.logs:
-                total=total+1
+            if r.corregido:
+                for p in r.logs:
+                    total=total+1
+            else:
+                for p in r.inventory_lines:
+                    total=total+p.product_qty
             r.total=total
     
     
