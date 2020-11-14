@@ -68,10 +68,15 @@ class stock_paquete(models.Model):
         for r in self:
             total=0.0
             for p in r.inventory_lines:
-                total=total+p.product_qty
+                if r.inventory_id.id==p.inventory_id.id:
+                    total=total+p.product_qty
             r.total=total
         
-
+class stock_inventory_log(models.Model):
+    _name='stock.inventory.log'
+    _description='Linea de procesamiento de ordenes'
+    name=fields.Char("Barcode")
+    inventory_id=fields.Many2one(comodel_name='stock.inventory', string='Invnetario')
 
 class StockInventory(models.Model):
     _inherit='stock.inventory'
@@ -79,9 +84,11 @@ class StockInventory(models.Model):
     last_cantidad=fields.Integer("ULTIMA CANTIDAD LEIDA")
     nueva_caja=fields.Char("Nueva Caja")
     caja_actual=fields.Char("Nueva Caja")
+    requiere_caja=fields.Char("Requiere caja")
     paquete_actual=fields.Many2one(comodel_name='stock.quant.package', string='Paquete Actual')
     cantidad_actual=fields.Float(string="Cantidad en el paquete actual",compute='getcantidad_actual',store=False)
     paquetes=fields.One2many(comodel_name='stock.quant.package',inverse_name='inventory_id',string="paquetes")
+    logs=fields.One2many(comodel_name='stock.inventory.log',inverse_name='inventory_id',string="logs")
     
     @api.multi
     @api.depends('paquete_actual')
@@ -109,6 +116,7 @@ class StockInventory(models.Model):
         inventory_id =self.id
         stock_inventory = self.env['stock.inventory'].search([('id', '=', inventory_id)],limit=1)
         if stock_inventory:
+            self.env['stock.inventory.log'].create({'inventory_id':inventory_id,'name':barcode})
             product_id = self.env['product.product'].search([('barcode', '=', barcode)],limit=1)
             if not product_id:
                 multi=self.env['product.multi.barcode'].search([('name', '=', barcode)],limit=1)
@@ -123,40 +131,48 @@ class StockInventory(models.Model):
 #                    location_id = warehouse.lot_stock_id.id
 #                else:
 #                    raise UserError(_('You must define a warehouse for the company: %s.') % (company.name,))
-                if not stock_inventory.line_ids:
-                    inventory_line_val = {
-                            'display_name': product_id.name,
-                            'product_id': product_id.id,
-                            'location_id':location_id,
-                            'package_id':stock_inventory.paquete_actual.id,
-                            'product_qty': 1,
-                            'product_uom_id': product_id.product_tmpl_id.uom_id.id,
-                            'inventory_id': stock_inventory.id
-                    }
-                    self.last_product_id=product_id.id
-                    self.last_cantidad=1
-                    stock_inventory.update({'line_ids': [(0, 0, inventory_line_val)]})
-
-                else:
-                    stock_picking_line = stock_inventory.line_ids.search([('product_id', '=', product_id.id),('inventory_id','=',inventory_id),('package_id','=',stock_inventory.paquete_actual.id)], limit=1)
-                    cantidad=1
-                    if stock_picking_line:
-                        stock_picking_line.product_qty += 1
-                        cantidad=stock_picking_line.product_qty
-                        self.last_product_id=product_id.id
-                        self.last_cantidad=cantidad
-                    else :
+                valid=False
+                paquete_id=None
+                if stock_inventory.requiere_caja:
+                    if stock_inventory.paquete_actual:
+                        valid=True
+                        paquete_id=stock_inventory.paquete_actual.id
+                    else:
+                        raise UserError('Debe especificarse un paquete')
+                if valid:
+                    if not stock_inventory.line_ids:
                         inventory_line_val = {
-                            'display_name': product_id.name,
-                            'product_id': product_id.id,
-                            'location_id':location_id,
-                            'package_id':stock_inventory.paquete_actual.id,
-                            'product_qty': 1,
-                            'product_uom_id': product_id.product_tmpl_id.uom_id.id,
-                            'inventory_id': stock_inventory.id
+                                'display_name': product_id.name,
+                                'product_id': product_id.id,
+                                'location_id':location_id,
+                                'package_id':paquete_id,
+                                'product_qty': 1,
+                                'product_uom_id': product_id.product_tmpl_id.uom_id.id,
+                                'inventory_id': stock_inventory.id
                         }
                         self.last_product_id=product_id.id
-                        self.last_cantidad=cantidad
+                        self.last_cantidad=1
                         stock_inventory.update({'line_ids': [(0, 0, inventory_line_val)]})
+                    else:
+                        stock_picking_line = stock_inventory.line_ids.search([('product_id', '=', product_id.id),('inventory_id','=',inventory_id),('package_id','=',paquete_id)], limit=1)
+                        cantidad=1
+                        if stock_picking_line:
+                            stock_picking_line.product_qty += 1
+                            cantidad=stock_picking_line.product_qty
+                            self.last_product_id=product_id.id
+                            self.last_cantidad=cantidad
+                        else :
+                            inventory_line_val = {
+                                'display_name': product_id.name,
+                                'product_id': product_id.id,
+                                'location_id':location_id,
+                                'package_id':paquete_id,
+                                'product_qty': 1,
+                                'product_uom_id': product_id.product_tmpl_id.uom_id.id,
+                                'inventory_id': stock_inventory.id
+                            }
+                            self.last_product_id=product_id.id
+                            self.last_cantidad=cantidad
+                            stock_inventory.update({'line_ids': [(0, 0, inventory_line_val)]})
             else :
                 raise UserError('Product does not exist')
