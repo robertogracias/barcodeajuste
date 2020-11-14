@@ -63,7 +63,7 @@ class stock_paquete(models.Model):
     total=fields.Float("Total",compute='calcular_total',store=False)
     
     @api.multi
-    @api.depends('inventory_lines')
+    @api.depends('inventory_lines','write_date')
     def calcular_total(self):
         for r in self:
             total=0.0
