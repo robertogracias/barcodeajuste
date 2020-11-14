@@ -53,12 +53,13 @@ var sh_barcode = FormController.include({
         
         //check conditon to match in our critearea than call the function
         if(is_model_found != -1 && id !=false && barcode !=false  ){
-        	
+        	var d = new Date();
+            var n = d.getMilliseconds();
             var self = this;
             this._rpc({
                 model: model,
                 method: 'sh_on_barcode_scanned',
-                args: [parseInt(id),barcode],
+                args: [parseInt(id),barcode,n],
             }).then(function () {
                 self.trigger_up('reload');
             });           	
