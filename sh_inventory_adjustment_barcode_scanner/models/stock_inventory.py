@@ -83,7 +83,7 @@ class StockInventory(models.Model):
     last_product_id=fields.Many2one(comodel_name='product.product', string='ULTIMO PRODUCTO ESCANEADO')
     last_cantidad=fields.Integer("ULTIMA CANTIDAD LEIDA")
     nueva_caja=fields.Char("Nueva Caja")
-    caja_actual=fields.Char("Nueva Caja")
+    caja_actual=fields.Char("Caja Actual")
     requiere_caja=fields.Char("Requiere caja")
     paquete_actual=fields.Many2one(comodel_name='stock.quant.package', string='Paquete Actual')
     cantidad_actual=fields.Float(string="Cantidad en el paquete actual",compute='getcantidad_actual',store=False)
@@ -139,6 +139,10 @@ class StockInventory(models.Model):
                         paquete_id=stock_inventory.paquete_actual.id
                     else:
                         raise UserError('Debe especificarse un paquete')
+                else:
+                    valid=True
+                    if stock_inventory.paquete_actual:
+                        paquete_id=stock_inventory.paquete_actual.id
                 if valid:
                     if not stock_inventory.line_ids:
                         inventory_line_val = {
