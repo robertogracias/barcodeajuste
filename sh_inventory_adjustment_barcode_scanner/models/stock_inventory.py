@@ -84,7 +84,7 @@ class StockInventory(models.Model):
     last_cantidad=fields.Integer("ULTIMA CANTIDAD LEIDA")
     nueva_caja=fields.Char("Nueva Caja")
     caja_actual=fields.Char("Caja Actual")
-    requiere_caja=fields.Char("Requiere caja")
+    requiere_caja=fields.Boolean("Requiere caja")
     paquete_actual=fields.Many2one(comodel_name='stock.quant.package', string='Paquete Actual')
     cantidad_actual=fields.Float(string="Cantidad en el paquete actual",compute='getcantidad_actual',store=False)
     paquetes=fields.One2many(comodel_name='stock.quant.package',inverse_name='inventory_id',string="paquetes")
