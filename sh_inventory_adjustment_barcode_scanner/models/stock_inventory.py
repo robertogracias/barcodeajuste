@@ -6,14 +6,17 @@ from odoo.exceptions import UserError
 import threading
 
 class ref_partner(models.Model):
-    _inherit='res.partner'
+    _inherit='sale.order'
+    customer_ref=fields.Char("Referencia de cliente")
     
-    @api.model
-    def _name_search(self,name='',args=None,operator='ilike',limit=100):
-        if args==None:
-            args=[]
-        domain=['|',('ref','ilike',name),('name','ilike',name)]
-        return super(ref_partner,self).search(domain,limit).name_get()
+    @api.multi
+    @api.onchange('customer_ref')
+    def on_change_state(self):
+        for r in self:
+            customer=self.env['res.partner'].search([('ref','=',r.customer_ref)],limit=1)
+            if customer:
+                r.partner_id=customer.id
+
 
 class mrp_process(models.Model):
     _name='mrp.proceso'
