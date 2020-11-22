@@ -5,6 +5,15 @@ from odoo import models,api,fields
 from odoo.exceptions import UserError
 import threading
 
+class ref_partner(models.Model):
+    _inherit='res.partner'
+    
+    @api.model
+    def _name_search(self,name='',args=None,operator='ilike',limit=100):
+        if args==None:
+            args=[]
+        domain=args+['|',('ref',operator,name),('name',operator,name)]
+        return super(ref_partner,self).search(domain,limit).name_get()
 
 class mrp_process(models.Model):
     _name='mrp.proceso'
