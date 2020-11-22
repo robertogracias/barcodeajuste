@@ -12,7 +12,10 @@ class ref_partner(models.Model):
     def _name_search(self,name='',args=None,operator='ilike',limit=100):
         if args==None:
             args=[]
-        domain=args+['|',('ref',operator,name),('name',operator,name)]
+        if operator=='ilike':
+            domain=args+['|',('ref',operator,'%'+name+'%'),('name',operator,'%'+name+'%')]
+        else:
+            domain=args+['|',('ref',operator,name),('name',operator,name)]
         return super(ref_partner,self).search(domain,limit).name_get()
 
 class mrp_process(models.Model):
