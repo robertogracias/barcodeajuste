@@ -48,6 +48,9 @@ class mrp_process(models.Model):
                         raise UserError('La orden no esta en estado confirmada')
                 if proceso.tipo=='Salida':
                     if orden.state=='progress':
+                        for m in orden.move_raw_ids:
+                            if m.reserved_availability:
+                                m.quantity_done=m.reserved_availability
                         orden.button_mark_done()
                         self.env['mrp.proceso.line'].create({'name':barcode,'proceso_id':proceso.id,'production_id':orden.id})
                     else:
