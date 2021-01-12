@@ -52,8 +52,9 @@ class mrp_process(models.Model):
                             if m.active_move_line_ids:
                                 for l in m.active_move_line_ids:
                                     l.qty_done=l.product_qty
-                            if m.reserved_availability:
-                                m.quantity_done=m.reserved_availability
+                            else:
+                                if m.reserved_availability:
+                                    m.quantity_done=m.reserved_availability
                         orden.button_mark_done()
                         self.env['mrp.proceso.line'].create({'name':barcode,'proceso_id':proceso.id,'production_id':orden.id})
                     else:
