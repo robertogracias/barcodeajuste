@@ -49,6 +49,9 @@ class mrp_process(models.Model):
                 if proceso.tipo=='Salida':
                     if orden.state=='progress':
                         for m in orden.move_raw_ids:
+                            if m.active_move_line_ids:
+                                for l in m.active_move_line_ids:
+                                    l.qty_done=l.product_qty
                             if m.reserved_availability:
                                 m.quantity_done=m.reserved_availability
                         orden.button_mark_done()
