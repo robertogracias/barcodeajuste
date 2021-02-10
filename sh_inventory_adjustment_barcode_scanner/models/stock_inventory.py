@@ -121,6 +121,7 @@ class mrp_ruta(models.Model):
             if orden:
                 if orden.estado_optica=='FACTURADA':
                     orden.estado_optica='EN RUTA'
+                    self.env['sale.reparto.line'].create({'name':barcode,'reparto_id':proceso.id,'sale_order':orden.id})
                 else:
                     raise UserError('La orden no esta en estado FACTURADA')
             else:
