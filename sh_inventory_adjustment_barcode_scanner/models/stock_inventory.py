@@ -17,7 +17,7 @@ class partner_ruta(models.Model):
     
 class ruta_invoice(models.Model):
     _inherit='account.invoice'
-    ruta_id=fields.Many2one(comodel_name='sale.ruta', string='Ruta',related='parnert_id.ruta_id',store=True)
+    ruta_id=fields.Many2one(comodel_name='sale.ruta', string='Ruta',related='partner_id.ruta_id',store=True)
 
 class ref_sale_history(models.Model):
     _name='sale.order.history'
@@ -28,7 +28,7 @@ class ref_sale_history(models.Model):
 class ref_partner(models.Model):
     _inherit='sale.order'
     customer_ref=fields.Char("Referencia de cliente")
-    ruta_id=fields.Many2one(comodel_name='sale.ruta', string='Ruta',related='parnert_id.ruta_id',store=True)
+    ruta_id=fields.Many2one(comodel_name='sale.ruta', string='Ruta',related='partner_id.ruta_id',store=True)
     estado_optica=fields.Selection([
         ('INGRESADA','INGRESADA'),
         ('MATERIAL APLICADO','MATERIAL APLICADO'),
