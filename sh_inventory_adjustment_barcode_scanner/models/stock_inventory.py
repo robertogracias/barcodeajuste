@@ -119,8 +119,8 @@ class mrp_ruta(models.Model):
         if proceso:
             orden = self.env['sale.order'].search([('name', '=', barcode)],limit=1)
             if orden:
-                if orden.estado_optica=='SALIDA':
-                    orden.estado_optica='FACTURADA'
+                if orden.estado_optica=='FACTURADA':
+                    orden.estado_optica='EN RUTA'
                 else:
                     raise UserError('La orden no esta en estado FACTURADA')
             else:
