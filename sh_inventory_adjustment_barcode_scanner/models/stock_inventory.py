@@ -5,9 +5,36 @@ from odoo import models,api,fields
 from odoo.exceptions import UserError
 import threading
 
+class sale_ruta(models.Model):
+    _name='sale.ruta'
+    _description='Rutas de reparto'
+    name=fields.Char("Ruta")
+    
+
+class partner_ruta(models.Model):
+    _inherit='res.partner'
+    ruta_id=fields.Many2one(comodel_name='sale.ruta', string='Ruta')
+    
+class ruta_invoice(models.Model):
+    _inherit='account.invoice'
+    ruta_id=fields.Many2one(comodel_name='sale.ruta', string='Ruta',related='parnert_id.ruta_id',store=True)
+
+class ref_sale_history(models.Model):
+    _name='sale.order.history'
+    _description='Cambio de estado de la orden'
+    name=fields.Char('Estado')
+    sale_order=fields.Many2one(comodel_name='sale.order', string='Orden de Venta')
+
 class ref_partner(models.Model):
     _inherit='sale.order'
     customer_ref=fields.Char("Referencia de cliente")
+    ruta_id=fields.Many2one(comodel_name='sale.ruta', string='Ruta',related='parnert_id.ruta_id',store=True)
+    estado_optica=fields.Selection([
+        ('INGRESADA','INGRESADA'),
+        ('MATERIAL APLICADO','MATERIAL APLICADO'),
+        ('SALIDA','SALIDA'),
+        ('FACTURADA','FACTURADA'),
+        ('EN RUTA','EN RUTA')], string='Tipo de operacion',default='INGRESADA')
     
     @api.multi
     @api.onchange('customer_ref')
@@ -61,8 +88,8 @@ class mrp_process(models.Model):
                         raise UserError('La orden no esta en progreso')
             else:
                 raise UserError('La orden no esta registrada')
-        
-    
+
+
 class mrp_process_lie(models.Model):
     _name='mrp.proceso.line'
     _description='Linea de procesamiento de ordenes'
@@ -73,9 +100,51 @@ class mrp_process_lie(models.Model):
     partner_id=fields.Many2one(comodel_name='res.partner',related='production_id.x_cliente', string='Cliente')
     paciente=fields.Char(string='Paciente',related='production_id.x_paciente')
 
+
+class mrp_ruta(models.Model):
+    _name='sale.reparto'
+    _description='Reparto en ruta'
+    name=fields.Char("Ruta")
+    employee_id=fields.Many2one(comodel_name='hr.employee', string='Empleado')
+    ruta_id=fields.Many2one(comodel_name='sale.ruta', string='Ruta')
+    fecha=fields.Date("Fecha")
+    ultima=fields.Char("Ultima orden leida")
+    ordenes=fields.One2many(comodel_name='sale.reparto.line',inverse_name='reparto_id', string='Ordenes')
+    
+    
+    @api.one
+    def sh_on_barcode_scanned(self, barcode,n):
+        proceso_id=self.id
+        proceso=self.env['sale.reparto'].search([('id', '=', proceso_id)],limit=1)
+        if proceso:
+            orden = self.env['sale.order'].search([('name', '=', barcode)],limit=1)
+            if orden:
+                if orden.estado_optica=='SALIDA':
+                    orden.estado_optica='FACTURADA'
+                else:
+                    raise UserError('La orden no esta en estado FACTURADA')
+            else:
+                raise UserError('La orden no esta registrada')
+
+class sale_reparto_lie(models.Model):
+    _name='sale.reparto.line'
+    _description='Linea de procesamiento de ordenes'
+    name=fields.Char("Orden")
+    reparto_id=fields.Many2one(comodel_name='sale.reparto', string='Reparto')
+    sale_order=fields.Many2one(comodel_name='sale.order', string='Orden de Venta')
+    partner_id=fields.Many2one(comodel_name='res.partner',related='sale_order.partner_id', string='Cliente')
+    paciente=fields.Char(string='Paciente',related='sale_order.x_paciente')
+        
+    
+
+
 class mrp_process_production(models.Model):
     _inherit='mrp.production'
     recibido_lab=fields.Boolean('Recibido en laboratorio')
+    
+    
+    
+
 
 class stock_paquete(models.Model):
     _inherit='stock.quant.package'
