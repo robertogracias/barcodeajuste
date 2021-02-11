@@ -69,6 +69,8 @@ class mrp_process(models.Model):
                             orden.recibido_lab=True
                             orden.action_toggle_is_locked()
                             self.env['mrp.proceso.line'].create({'name':barcode,'proceso_id':proceso.id,'production_id':orden.id})
+                            if orden.x_sale_order_id:
+                                orden.x_sale_order_id.estado_optica='INGRESADA'
                         else:
                             raise UserError('La orden ya fue recibida')
                     else:
@@ -84,6 +86,8 @@ class mrp_process(models.Model):
                                     m.quantity_done=m.reserved_availability
                         orden.button_mark_done()
                         self.env['mrp.proceso.line'].create({'name':barcode,'proceso_id':proceso.id,'production_id':orden.id})
+                        if orden.x_sale_order_id:
+                                orden.x_sale_order_id.estado_optica='SALIDA'
                     else:
                         raise UserError('La orden no esta en progreso')
             else:
@@ -110,6 +114,28 @@ class mrp_ruta(models.Model):
     fecha=fields.Date("Fecha")
     ultima=fields.Char("Ultima orden leida")
     ordenes=fields.One2many(comodel_name='sale.reparto.line',inverse_name='reparto_id', string='Ordenes')
+    state=fields.Selection([
+        ('RUTA','RUTA'),
+        ('REGRESO','REGRESO'),
+        ('LIQUIDACION','LIQUIDACION'),
+        ('CERRADA','CERRADA')], string='Estado',default='RUTA')
+    
+    @api.multi
+    def marcar_regreso(self):
+        for r in self:
+            r.state='REGRESO'
+    
+    @api.multi
+    def marcar_liquidacion(self):
+        for r in self:
+            r.state='LIQUIDACION'
+    
+    
+    @api.multi
+    def marcar_cerrada(self):
+        for r in self:
+            r.state='CERRADA'
+    
     
     
     @api.one
@@ -119,13 +145,29 @@ class mrp_ruta(models.Model):
         if proceso:
             orden = self.env['sale.order'].search([('name', '=', barcode)],limit=1)
             if orden:
-                if orden.estado_optica=='FACTURADA':
-                    orden.estado_optica='EN RUTA'
-                    self.env['sale.reparto.line'].create({'name':barcode,'reparto_id':proceso.id,'sale_order':orden.id})
-                else:
-                    raise UserError('La orden no esta en estado FACTURADA')
+                if proceso.state=='RUTA':
+                    if orden.estado_optica=='FACTURADA':
+                        linea=self.env['sale.reparto.line'].search([('reparto_id','=',proceso.id),('sale_order','=',orden.id)])
+                        if linea:
+                            raise UserError('La orden ya esta registrada en esta ruta')
+                        else:
+                            orden.estado_optica='EN RUTA'
+                            self.env['sale.reparto.line'].create({'name':barcode,'reparto_id':proceso.id,'sale_order':orden.id})
+                    else:
+                        raise UserError('La orden no esta en estado FACTURADA')
+                if proceso.state=='REGRESO':
+                    if orden.estado_optica=='EN RUTA':
+                        linea=self.env['sale.reparto.line'].search([('reparto_id','=',proceso.id),('sale_order','=',orden.id)])
+                        if linea:
+                            orden.estado_optica='FACTURADA'
+                            linea.state='RETORNADO'
+                        else:
+                            raise UserError('La orden no esta registrada en esta ruta')
+                    else:
+                        raise UserError('La orden no esta en estado EN RUTA')
             else:
                 raise UserError('La orden no esta registrada')
+
 
 class sale_reparto_lie(models.Model):
     _name='sale.reparto.line'
@@ -135,7 +177,9 @@ class sale_reparto_lie(models.Model):
     sale_order=fields.Many2one(comodel_name='sale.order', string='Orden de Venta')
     partner_id=fields.Many2one(comodel_name='res.partner',related='sale_order.partner_id', string='Cliente')
     paciente=fields.Char(string='Paciente',related='sale_order.x_paciente')
-        
+    state=fields.Selection([
+        ('RUTA','RUTA'),
+        ('RETORNADO','RETORNADO')], string='Estado',default='RUTA')
     
 
 
