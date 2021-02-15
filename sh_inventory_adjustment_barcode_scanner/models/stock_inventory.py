@@ -3,6 +3,7 @@
 
 from odoo import models,api,fields
 from odoo.exceptions import UserError
+from datetime import datetime, date, timedelta
 import threading
 
 class sale_ruta(models.Model):
@@ -30,11 +31,12 @@ class ref_partner(models.Model):
     customer_ref=fields.Char("Referencia de cliente")
     ruta_id=fields.Many2one(comodel_name='sale.ruta', string='Ruta',related='partner_id.ruta_id',store=True)
     estado_optica=fields.Selection([
+        ('DIGITADA','DIGITADA'),
         ('INGRESADA','INGRESADA'),
         ('MATERIAL APLICADO','MATERIAL APLICADO'),
         ('SALIDA','SALIDA'),
         ('FACTURADA','FACTURADA'),
-        ('EN RUTA','EN RUTA')], string='Tipo de operacion',default='INGRESADA')
+        ('EN RUTA','EN RUTA')], string='Tipo de operacion',default='DIGITADA')
     
     @api.multi
     @api.onchange('customer_ref')
@@ -43,6 +45,58 @@ class ref_partner(models.Model):
             customer=self.env['res.partner'].search([('ref','=',r.customer_ref)],limit=1)
             if customer:
                 r.partner_id=customer.id
+                
+                
+class mrp_produccion(models.Model):
+    _name='mrp.proceso.laboratorio'
+    _description='Procesamiento de ordenes'
+    name=fields.Char("Referencia")
+    cierre=fields.Date("Fecha de Cierre")
+    ordenes=fields.One2many(comodel_name='mrp.production',inverse_name='proceso_id', string='Ordenes')
+    actual=fields.Char("Orden")
+    
+    
+    
+    @api.multi
+    def abrir_orden(self):
+        for proceso in self:
+            orden = self.env['mrp.production'].search([('origin', '=', proceso.actual)],limit=1)
+            if orden:
+                if orden.x_sale_order_id.estado_optica=='INGRESADA':
+                    orden.proceso_id=proceso.id
+                    compose_form = self.env.ref('mrp.mrp_production_form_view', False)
+                    ctx = dict(
+                        default_activo_id=self.id,
+                        default_type='Asignacion'
+                    )
+                    return {
+                        'name': 'Asignacion',
+                        'type': 'ir.actions.act_window',
+                        'view_type': 'form',
+                        'view_mode': 'form',
+                        'res_model': 'mrp.production',
+                        'views': [(compose_form.id, 'form')],
+                        'res_id':orden.id,
+                        'target': 'new',
+                        'view_id': 'compose_form.id',
+                        'flags': {'action_buttons': True},
+                        'context': ctx
+                    }
+                else:
+                    raise UserError('La orden no esta en estado INGRESADA')
+            else:
+                raise UserError('La orden no esta registrada')
+    
+    
+    
+    @api.one
+    def sh_on_barcode_scanned(self, barcode,n):
+        proceso_id=self.id
+        proceso=self.env['mrp.proceso.laboratorio'].search([('id', '=', proceso_id)],limit=1)
+        if proceso:
+            proceso.actual=barcode
+            
+    
 
 
 class mrp_process(models.Model):
@@ -186,7 +240,85 @@ class sale_reparto_lie(models.Model):
 class mrp_process_production(models.Model):
     _inherit='mrp.production'
     recibido_lab=fields.Boolean('Recibido en laboratorio')
+    proceso_id=fields.Many2one(comodel_name='mrp.proceso.laboratorio', string='Produccion')
     
+    od_code=fields.Char("Ojo derecho")
+    oi_code=fields.Char("Ojo izquierdo")
+    
+    od_product=fields.Many2one(comodel_name='product.product', string='Ojo derecho')
+    oi_product=fields.Many2one(comodel_name='product.product', string='Ojo derecho')
+    
+    od_name=fields.Char("Ojo derecho",related='od_product.name')
+    oi_name=fields.Char("Ojo izquierdo",related='oi_product.name')
+    
+    @api.multi
+    @api.onchange('od_code')
+    def on_change_od(self):
+        for r in self:
+            product_id = self.env['product.product'].search([('barcode', '=', r.od_code)],limit=1)
+            if not product_id:
+                multi=self.env['product.multi.barcode'].search([('name', '=', r.od_code)],limit=1)
+                if multi:
+                    if multi.product_id:
+                        product_id=self.env['product.product'].search([('id', '=', multi.product_id.id)],limit=1)
+            if product_id:
+                r.od_product=product_id.id
+    
+    @api.multi
+    @api.onchange('oi_code')
+    def on_change_oi(self):
+        for r in self:
+            product_id = self.env['product.product'].search([('barcode', '=', r.oi_code)],limit=1)
+            if not product_id:
+                multi=self.env['product.multi.barcode'].search([('name', '=', r.oi_code)],limit=1)
+                if multi:
+                    if multi.product_id:
+                        product_id=self.env['product.product'].search([('id', '=', multi.product_id.id)],limit=1)
+            if product_id:
+                r.oi_product=product_id.id
+    
+    
+    @api.multi
+    def open_produce_product(self):
+        for r in self:
+            if r.is_locked:
+                r.action_toggle_is_locked()
+            if r.od_product:
+                dic1={}
+                dic1['product_id']=r.od_product.id
+                dic1['location_id']=132
+                dic1['location_dest_id']=7
+                dic1['company_id']=1
+                dic1['date']=datetime.now()
+                dic1['date_expected']=datetime.now()
+                dic1['product_uom']=1
+                dic1['product_uom_qty']=1
+                dic1['x_ojo']='OD'
+                dic1['state']='confirmed'
+                dic1['name']=r.name+'OD'
+                dic1['raw_material_production_id']=r.id
+                self.env['stock.move'].create(dic1)
+            if r.oi_product:
+                dic1={}
+                dic1['product_id']=r.oi_product.id
+                dic1['location_id']=132
+                dic1['location_dest_id']=7
+                dic1['company_id']=1
+                dic1['date']=datetime.now()
+                dic1['date_expected']=datetime.now()
+                dic1['product_uom']=1
+                dic1['product_uom_qty']=1
+                dic1['x_ojo']='OI'
+                dic1['state']='confirmed'
+                dic1['name']=r.name+'OI'
+                dic1['raw_material_production_id']=r.id
+                self.env['stock.move'].create(dic1)
+            r.action_toggle_is_locked()
+            r.action_assign()
+            for m in r.move_raw_ids:
+                if m.reserved_availability==0:
+                    raise UserError('El Material no esta disponible')
+            return super(mrp_process_production, self).open_produce_product()
     
     
 
