@@ -24,6 +24,7 @@ class ref_sale_history(models.Model):
     _name='sale.order.history'
     _description='Cambio de estado de la orden'
     name=fields.Char('Estado')
+    stage=fields.Char('Etapa')
     sale_order=fields.Many2one(comodel_name='sale.order', string='Orden de Venta')
 
 class ref_partner(models.Model):
@@ -37,6 +38,8 @@ class ref_partner(models.Model):
         ('SALIDA','SALIDA'),
         ('FACTURADA','FACTURADA'),
         ('EN RUTA','EN RUTA')], string='Tipo de operacion',default='DIGITADA')
+    stage=fields.Char('Etapa')
+    
     
     @api.multi
     @api.onchange('customer_ref')
@@ -235,7 +238,53 @@ class sale_reparto_lie(models.Model):
         ('RUTA','RUTA'),
         ('RETORNADO','RETORNADO')], string='Estado',default='RUTA')
     
+    
+    
+class mrp_stage(models.Model):
+    _name='mrp.stage'
+    _description='Etapas del Proceso'
+    name=fields.Char("Etapa")
+    
+class mrp_stage_item(models.Model):
+    _name='mrp.stage.item'
+    _description='Etapas del Proceso'
+    name=fields.Char("Etapa")
+    stage_id=fields.Many2one(comodel_name='mrp.stage', string='etapa')
+    run_id=fields.Many2one(comodel_name='mrp.stage.run', string='run')
+    
+    @api.multi
+    def establecer(self):
+        for r in self:
+            r.run_id.current=r.stage_id.id
+            r.run_id.lastorden=None
+    
 
+class mrp_proceso(models.Model):
+    _name='mrp.stage.run'
+    _description='Proceso'
+    name=fields.Char("Etapa")
+    step_ids=fields.One2many(comodel_name='mrp.stage.item',inverse_name='run_id',string="Running")
+    current=fields.Many2one(comodel_name='mrp.stage', string='Etapa Actual')
+    lastorden=fields.Many2one(comodel_name='sale.order', string='Ultima Orden')
+    
+    @api.multi
+    def iniciar(self):
+        for r in self:
+            lst=self.env['mrp.stage'].search([])
+            for l in lst:
+                self.env['mrp.stage.item'].create({'name':l.name,'stage_id':l.id,'run_id':r.id})
+    
+    @api.one
+    def sh_on_barcode_scanned(self, barcode,n):
+        proceso_id=self.id
+        proceso=self.env['mrp.stage.run'].search([('id', '=', proceso_id)],limit=1)
+        if proceso:
+            orden = self.env['sale.order'].search([('name', '=', barcode)],limit=1)
+            orden.stage=proceso.current.name
+            proceso.lastorden=orden.id
+            self.env['sale.order.history'].create({'name':orden.estado_optica,'sale_order':orden.id,'stage':proceso.current.name})
+    
+    
 
 class mrp_process_production(models.Model):
     _inherit='mrp.production'
