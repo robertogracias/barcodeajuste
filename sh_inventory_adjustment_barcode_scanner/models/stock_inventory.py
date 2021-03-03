@@ -25,6 +25,9 @@ class ref_sale_history(models.Model):
     _description='Cambio de estado de la orden'
     name=fields.Char('Estado')
     stage=fields.Char('Etapa')
+    state_action=fields.Selection([
+        ('Ingreso','Ingreso'),
+        ('Salida','Salida')], string='Accion Actual',default='Ingreso')
     sale_order=fields.Many2one(comodel_name='sale.order', string='Orden de Venta')
 
 class ref_partner(models.Model):
@@ -39,7 +42,9 @@ class ref_partner(models.Model):
         ('FACTURADA','FACTURADA'),
         ('EN RUTA','EN RUTA')], string='Tipo de operacion',default='DIGITADA')
     stage=fields.Char('Etapa')
-    
+    state_action=fields.Selection([
+        ('Ingreso','Ingreso'),
+        ('Salida','Salida')], string='Accion Actual',default='Ingreso')
     
     @api.multi
     @api.onchange('customer_ref')
@@ -253,9 +258,17 @@ class mrp_stage_item(models.Model):
     run_id=fields.Many2one(comodel_name='mrp.stage.run', string='run')
     
     @api.multi
-    def establecer(self):
+    def establecer_ingreso(self):
         for r in self:
             r.run_id.current=r.stage_id.id
+            r.run_id.current_action='Ingreso'
+            r.run_id.lastorden=None
+    
+    @api.multi
+    def establecer_salida(self):
+        for r in self:
+            r.run_id.current=r.stage_id.id
+            r.run_id.current_action='Salida'
             r.run_id.lastorden=None
     
 
@@ -266,6 +279,10 @@ class mrp_proceso(models.Model):
     step_ids=fields.One2many(comodel_name='mrp.stage.item',inverse_name='run_id',string="Running")
     current=fields.Many2one(comodel_name='mrp.stage', string='Etapa Actual')
     lastorden=fields.Many2one(comodel_name='sale.order', string='Ultima Orden')
+    current_action=fields.Selection([
+        ('Ingreso','Ingreso'),
+        ('Salida','Salida')], string='Accion Actual',default='Ingreso')
+    
     
     @api.multi
     def iniciar(self):
@@ -281,8 +298,9 @@ class mrp_proceso(models.Model):
         if proceso:
             orden = self.env['sale.order'].search([('name', '=', barcode)],limit=1)
             orden.stage=proceso.current.name
+            orden.state_action=proceso.current_action
             proceso.lastorden=orden.id
-            self.env['sale.order.history'].create({'name':orden.estado_optica,'sale_order':orden.id,'stage':proceso.current.name})
+            self.env['sale.order.history'].create({'name':orden.estado_optica,'sale_order':orden.id,'stage':proceso.current.name,'state_action':proceso.current_action})
     
     
 
