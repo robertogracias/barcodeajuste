@@ -40,7 +40,7 @@ class ref_partner(models.Model):
         ('MATERIAL APLICADO','MATERIAL APLICADO'),
         ('SALIDA','SALIDA'),
         ('FACTURADA','FACTURADA'),
-        ('EN RUTA','EN RUTA')], string='Tipo de operacion',default='DIGITADA')
+        ('EN RUTA','EN RUTA'),('ENTREGADA','ENTREGADA')], string='Tipo de operacion',default='DIGITADA')
     stage=fields.Char('Etapa')
     state_action=fields.Selection([
         ('Ingreso','Ingreso'),
