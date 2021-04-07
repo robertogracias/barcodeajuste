@@ -216,7 +216,15 @@ class mrp_ruta(models.Model):
                             orden.estado_optica='EN RUTA'
                             self.env['sale.reparto.line'].create({'name':barcode,'reparto_id':proceso.id,'sale_order':orden.id})
                     else:
-                        raise UserError('La orden no esta en estado FACTURADA')
+                        if orden.estado_optica=='EN RUTA':
+                            linea=self.env['sale.reparto.line'].search([('reparto_id','=',proceso.id),('sale_order','=',orden.id)])
+                            if linea:
+                                raise UserError('La orden ya esta registrada en esta ruta')
+                            else:
+                                orden.estado_optica='EN RUTA'
+                                self.env['sale.reparto.line'].create({'name':barcode,'reparto_id':proceso.id,'sale_order':orden.id})
+                        else:
+                            raise UserError('La orden no esta en estado FACTURADA')
                 if proceso.state=='REGRESO':
                     if orden.estado_optica=='EN RUTA':
                         linea=self.env['sale.reparto.line'].search([('reparto_id','=',proceso.id),('sale_order','=',orden.id)])
@@ -297,10 +305,13 @@ class mrp_proceso(models.Model):
         proceso=self.env['mrp.stage.run'].search([('id', '=', proceso_id)],limit=1)
         if proceso:
             orden = self.env['sale.order'].search([('name', '=', barcode)],limit=1)
-            orden.stage=proceso.current.name
-            orden.state_action=proceso.current_action
-            proceso.lastorden=orden.id
-            self.env['sale.order.history'].create({'name':orden.estado_optica,'sale_order':orden.id,'stage':proceso.current.name,'state_action':proceso.current_action})
+            if orden:
+                orden.stage=proceso.current.name
+                orden.state_action=proceso.current_action
+                proceso.lastorden=orden.id
+                self.env['sale.order.history'].create({'name':orden.estado_optica,'sale_order':orden.id,'stage':proceso.current.name,'state_action':proceso.current_action})
+            else:
+                raise UserError('La orden no esta registrada')
     
     
 
