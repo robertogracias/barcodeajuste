@@ -176,6 +176,9 @@ class mrp_ruta(models.Model):
     fecha=fields.Date("Fecha")
     ultima=fields.Char("Ultima orden leida")
     ordenes=fields.One2many(comodel_name='sale.reparto.line',inverse_name='reparto_id', string='Ordenes')
+    retorno=fields.Selection([
+        ('SOBRES','SOBRES'),
+        ('FACTURAS','FACTURAS')], string='Retornando',default='SOBRES')
     state=fields.Selection([
         ('RUTA','RUTA'),
         ('REGRESO','REGRESO'),
@@ -225,18 +228,26 @@ class mrp_ruta(models.Model):
                                 self.env['sale.reparto.line'].create({'name':barcode,'reparto_id':proceso.id,'sale_order':orden.id})
                         else:
                             raise UserError('La orden no esta en estado FACTURADA')
-                if proceso.state=='REGRESO':
-                    if orden.estado_optica=='EN RUTA':
-                        linea=self.env['sale.reparto.line'].search([('reparto_id','=',proceso.id),('sale_order','=',orden.id)])
-                        if linea:
-                            orden.estado_optica='FACTURADA'
-                            linea.state='RETORNADO'
-                        else:
-                            raise UserError('La orden no esta registrada en esta ruta')
-                    else:
-                        raise UserError('La orden no esta en estado EN RUTA')
             else:
-                raise UserError('La orden no esta registrada')
+                factura=self.env['account.invoice'].search([('reference', '=', barcode)],limit=1)
+                if factura:
+                    orden = self.env['sale.order'].search([('name', '=', factura.origin)],limit=1)
+                    if orden:
+                        if proceso.state=='REGRESO':
+                            if proceso.retorno=='FACTURAS':
+                                if orden.estado_optica=='EN RUTA':
+                                    linea=self.env['sale.reparto.line'].search([('reparto_id','=',proceso.id),('sale_order','=',orden.id)])
+                                    if linea:
+                                        orden.estado_optica='ENTREGADA'
+                                        linea.state='ENTREGADA'
+                                    else:
+                                        raise UserError('La orden no esta registrada en esta ruta')
+                                else:
+                                    raise UserError('La orden no esta en estado EN RUTA')
+                    else:
+                        raise UserError('La orden no esta registrada')
+                else:
+                    raise UserError('La orden no esta registrada')
 
 
 class sale_reparto_lie(models.Model):
@@ -249,9 +260,14 @@ class sale_reparto_lie(models.Model):
     paciente=fields.Char(string='Paciente',related='sale_order.x_paciente')
     state=fields.Selection([
         ('RUTA','RUTA'),
+        ('ENTREGADA','ENTREGADA'),
         ('RETORNADO','RETORNADO')], string='Estado',default='RUTA')
     
-    
+    @api.multi
+    def marcar_entregada(self):
+        for r in self:
+            r.state='ENTREGADA'
+            r.sale_order.estado_optica='ENTREGADA'
     
 class mrp_stage(models.Model):
     _name='mrp.stage'
