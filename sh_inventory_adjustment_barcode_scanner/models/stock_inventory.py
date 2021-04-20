@@ -228,22 +228,31 @@ class mrp_ruta(models.Model):
                                 self.env['sale.reparto.line'].create({'name':barcode,'reparto_id':proceso.id,'sale_order':orden.id})
                         else:
                             raise UserError('La orden no esta en estado FACTURADA')
+                if proceso.state=='REGRESO':
+                    if orden.estado_optica=='EN RUTA':
+                        linea=self.env['sale.reparto.line'].search([('reparto_id','=',proceso.id),('sale_order','=',orden.id)])
+                        if linea:
+                            orden.estado_optica='FACTURADA'
+                            linea.state='RETORNADO'
+                        else:
+                            raise UserError('La orden no esta registrada en esta ruta')
+                    else:
+                        raise UserError('La orden no esta en estado EN RUTA')
             else:
                 factura=self.env['account.invoice'].search([('reference', '=', barcode)],limit=1)
                 if factura:
-                    orden = self.env['sale.order'].search([('name', '=', factura.origin)],limit=1)
+                    orden=self.env['sale.order'].search([('name', '=', factura.origin)],limit=1)
                     if orden:
                         if proceso.state=='REGRESO':
-                            if proceso.retorno=='FACTURAS':
-                                if orden.estado_optica=='EN RUTA':
-                                    linea=self.env['sale.reparto.line'].search([('reparto_id','=',proceso.id),('sale_order','=',orden.id)])
-                                    if linea:
-                                        orden.estado_optica='ENTREGADA'
-                                        linea.state='ENTREGADA'
-                                    else:
-                                        raise UserError('La orden no esta registrada en esta ruta')
+                            if orden.estado_optica=='EN RUTA':
+                                linea=self.env['sale.reparto.line'].search([('reparto_id','=',proceso.id),('sale_order','=',orden.id)])
+                                if linea:
+                                    orden.estado_optica='ENTREGADA'
+                                    linea.state='ENTREGADA'
                                 else:
-                                    raise UserError('La orden no esta en estado EN RUTA')
+                                    raise UserError('La orden no esta registrada en esta ruta')
+                            else:
+                                raise UserError('La orden no esta en estado EN RUTA')
                     else:
                         raise UserError('La orden no esta registrada')
                 else:
