@@ -256,7 +256,7 @@ class mrp_ruta(models.Model):
                     else:
                         raise UserError('La orden no esta registrada')
                 else:
-                    raise UserError('La orden no esta registrada')
+                    raise UserError('La factura no esta registrada')
 
 
 class sale_reparto_lie(models.Model):
