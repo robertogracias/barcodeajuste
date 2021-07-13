@@ -42,7 +42,7 @@ var sh_barcode = FormController.include({
         var model = url.substring(start_pos,end_pos);
         
         //to finds the model in string
-        var models = ["stock.inventory","mrp.proceso","sale.reparto","mrp.proceso.laboratorio","mrp.stage.run"];
+        var models = ["stock.inventory","mrp.proceso","sale.reparto","sale.envio","mrp.proceso.laboratorio","mrp.stage.run"];
         var is_model_found = models.indexOf(model);
         
         //check whether record Saved or Not

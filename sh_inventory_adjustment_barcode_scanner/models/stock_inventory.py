@@ -594,3 +594,71 @@ class StockInventory(models.Model):
         finally:
             lock.release()
 
+class mrp_envio(models.Model):
+    _name='sale.envio'
+    _description='Envio a Optica'
+    name=fields.Char("Envio")
+    employee_id=fields.Many2one(comodel_name='hr.employee', string='Empleado')
+    fecha=fields.Date("Fecha")
+    ultima=fields.Char("Ultima orden leida")
+    ordenes=fields.One2many(comodel_name='sale.envio.line',inverse_name='envio_id', string='Ordenes')
+    state=fields.Selection([
+        ('RUTA','RUTA'),
+        ('REGRESO','REGRESO'),
+        ('LIQUIDACION','LIQUIDACION'),
+        ('CERRADA','CERRADA')], string='Estado',default='RUTA')
+    
+    @api.multi
+    def marcar_regreso(self):
+        for r in self:
+            r.state='REGRESO'
+    
+    @api.multi
+    def marcar_liquidacion(self):
+        for r in self:
+            r.state='LIQUIDACION'
+    
+    
+    @api.multi
+    def marcar_cerrada(self):
+        for r in self:
+            r.state='CERRADA'
+    
+    @api.one
+    def sh_on_barcode_scanned(self, barcode,n):
+        proceso_id=self.id
+        proceso=self.env['sale.envio'].search([('id', '=', proceso_id)],limit=1)
+        if proceso:
+            orden = self.env['sale.order'].search([('name', '=', barcode)],limit=1)
+            if orden:
+                if proceso.state=='RUTA':
+                    linea=self.env['sale.envio.line'].search([('envio_id','=',proceso.id),('sale_order','=',orden.id)])
+                    if linea:
+                        raise UserError('La orden ya esta registrada en este envio')
+                    else:
+                        orden.estado_optica='EN RUTA'
+                        self.env['sale.envio.line'].create({'name':barcode,'reparto_id':proceso.id,'sale_order':orden.id})
+            else:
+                raise UserError('La orden no esta registrada')
+
+
+
+class sale_envio_line(models.Model):
+    _name='sale.envio.line'
+    _description='Linea de procesamiento de ordenes'
+    name=fields.Char("Orden")
+    envio_id=fields.Many2one(comodel_name='sale.envio', string='Envio')
+    sale_order=fields.Many2one(comodel_name='sale.order', string='Orden de Venta')
+    partner_id=fields.Many2one(comodel_name='res.partner',related='sale_order.partner_id', string='Cliente')
+    paciente=fields.Char(string='Paciente',related='sale_order.x_paciente')
+    state=fields.Selection([
+        ('RUTA','RUTA'),
+        ('ENTREGADA','ENTREGADA'),
+        ('RETORNADO','RETORNADO')], string='Estado',default='RUTA')
+    
+    @api.multi
+    def marcar_entregada(self):
+        for r in self:
+            r.state='ENTREGADA'
+            r.sale_order.estado_optica='ENTREGADA'
+    
